@@ -133,6 +133,14 @@
     const AIRDROP_HURDLE = 69420;
     let particles = [], floats = [];
 
+    // Global intensity scaling logic (0.0 to 1.0)
+    function getGameIntensity() {
+        if (score >= 58000) return 1.0;
+        if (score >= 300) return 0.9 + 0.1 * ((score - 300) / 57700);
+        if (score >= 100) return 0.7 + 0.2 * ((score - 100) / 200);
+        return 0; // Baseline before 100 points
+    }
+
     class Player {
         constructor() { this.w=72; this.h=92; this.x=canvas.width/2-this.w/2; this.y=canvas.height-this.h-40; }
         draw() {
@@ -153,7 +161,7 @@
         constructor(x, y) {
             this.x = x + 33; this.y = y + 28;
             this.w = 12; this.h = 20; 
-            // 🔥 Projectile speed reduced by exactly 30% from base 23 (now 16.1)
+            // 30% reduction from base speed applied
             this.speed = 16.1; 
             this.trail = [];
         }
@@ -186,13 +194,11 @@
             
             this.pts = 10; 
             
-            let baseSpeed = (this.type === 'johnD' || this.type === 'mrG') ? 1.6 : 1.0;
-            // 🔥 100-point Breakpoint: Immediate 1.5x speed multiplier
-            if (score >= 100) {
-                baseSpeed *= 1.5;
-            }
-            // 🔥 Continuous aggressive scaling
-            this.speed = baseSpeed + (score / 6000); 
+            const intensity = getGameIntensity();
+            const MAX_SPEED_BONUS = 14.0; 
+            const baseSpeed = (this.type === 'johnD' || this.type === 'mrG') ? 1.6 : 1.0;
+            
+            this.speed = baseSpeed + (intensity * MAX_SPEED_BONUS); 
         }
         draw() {
             if (ASSETS[this.type].complete && ASSETS[this.type].naturalWidth) { 
@@ -253,8 +259,11 @@
     }
 
     function spawn() {
-        // 🔥 Extreme Spawn Scaling (Drops minimum spawn delay to 80ms)
-        const baseInterval = Math.max(380 - (score / 40), 80); 
+        const intensity = getGameIntensity();
+        const maxInterval = 450; 
+        const minInterval = 70; // Insane drop rate at max intensity
+        const baseInterval = maxInterval - (intensity * (maxInterval - minInterval)); 
+        
         const jitter = (Math.random() * 80) - 40; 
         const interval = baseInterval + jitter;
         
@@ -286,8 +295,8 @@
         document.getElementById('combo').style.display = 'block';
         document.getElementById('combo').innerText = combo + ' COMBO!';
         
-        // 🔥 Absolute Score Logic (Max 69420)
-        let gained = pts; 
+        // Exact flat 10 points per hit, no multipliers
+        let gained = 10; 
         if (score + gained >= AIRDROP_HURDLE) {
             gained = AIRDROP_HURDLE - score;
             score = AIRDROP_HURDLE;
