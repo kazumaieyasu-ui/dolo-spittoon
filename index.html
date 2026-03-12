@@ -92,9 +92,7 @@
             if (!AudioCtxClass) return;
             if (!audioCtx) audioCtx = new AudioCtxClass();
             if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
-        } catch(e) {
-            console.log("Audio blocked by browser, ignoring.", e);
-        }
+        } catch(e) {}
     }
 
     function playSoundEffect(type) {
@@ -144,7 +142,8 @@
 
     function getGameIntensity() {
         if (score >= 58000) return 1.0;
-        if (score >= 100) return 0.1 + 0.9 * ((score - 100) / 57900);
+        // Curve triggers immediately at 130 points (First Hit)
+        if (score >= 130) return 0.1 + 0.9 * ((score - 130) / 57870);
         return 0; 
     }
 
@@ -198,10 +197,11 @@
             this.y=-this.h;
             this.type = ['johnD','mrG','doge','pepe'][Math.floor(Math.random()*4)];
             
-            // 🔥 Exact 60 points per target
-            this.pts = 60; 
+            // 🔥 Math Flawlessness: 130 points per target (130 * 534 = 69420 exact)
+            this.pts = 130; 
             
-            this.baseSpeed = (this.type === 'johnD' || this.type === 'mrG') ? 2.4 : 1.5;
+            // 🔥 Base Speed boosted by 20% at the very start
+            this.baseSpeed = (this.type === 'johnD' || this.type === 'mrG') ? 2.88 : 1.8;
         }
         draw() {
             if (ASSETS[this.type].complete && ASSETS[this.type].naturalWidth) { 
@@ -214,7 +214,8 @@
         }
         update(ts) { 
             const intensity = getGameIntensity();
-            const MAX_SPEED_BONUS = 7.8; 
+            // Adjusted Bonus to ensure the absolute Maximum Speed is mathematically identical to before
+            const MAX_SPEED_BONUS = 7.32; 
             const currentSpeed = this.baseSpeed + (intensity * MAX_SPEED_BONUS);
             
             this.y += currentSpeed * ts; 
@@ -268,7 +269,8 @@
 
     function spawn() {
         const intensity = getGameIntensity();
-        const maxInterval = 450; 
+        // 🔥 Spawn Rate base sped up by 20%
+        const maxInterval = 360; 
         const minInterval = 100; 
         const baseInterval = maxInterval - (intensity * (maxInterval - minInterval)); 
         
@@ -444,7 +446,7 @@
             const bgm = document.getElementById('bgm');
             if(bgm) {
                 bgm.volume = 0.5;
-                bgm.play().catch(err => console.log("BGM Blocked by OS"));
+                bgm.play().catch(err => console.log("BGM Blocked"));
             }
         } catch(e) {}
 
