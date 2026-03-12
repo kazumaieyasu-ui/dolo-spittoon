@@ -127,6 +127,7 @@
     let lastSpawn = 0, gameStart = 0;
     let isPointerDown = false;
     let lastShotTime = 0;
+    let lastFrameTime = performance.now(); // 🔥 Delta Time tracking
     
     const FIRE_RATE = 120; 
     const AIRDROP_HURDLE = 69420;
@@ -154,8 +155,8 @@
             this.w = 12; this.h = 20; this.speed = 23;
             this.trail = [];
         }
-        update() {
-            this.y -= this.speed;
+        update(ts) {
+            this.y -= this.speed * ts; // 🔥 Time-based Movement
             this.trail.push({x: this.x + 3, y: this.y + 12});
             if (this.trail.length > 7) this.trail.shift();
         }
@@ -195,10 +196,10 @@
             }
             ctx.fillStyle='#f5d0b5'; ctx.fillRect(this.x+10,this.y+10,48,35); 
         }
-        update() { 
-            this.y += this.speed; 
+        update(ts) { 
+            this.y += this.speed * ts; // 🔥 Time-based Movement
             if (score > 30000 && (this.type==='johnD' || this.type==='mrG')) {
-                 if(Math.random() < 0.05) this.x += (Math.random()-0.5)*15; 
+                 if(Math.random() < 0.05 * ts) this.x += (Math.random()-0.5)*15 * ts; 
             }
         }
     }
@@ -208,16 +209,26 @@
             this.x=x; this.y=y; this.vx=(Math.random()-0.5)*14; this.vy=(Math.random()-0.5)*14-5; 
             this.life=38; this.size=8; this.color=color;
         }
-        update() { this.x+=this.vx; this.y+=this.vy; this.life--; this.vy+=0.25; }
-        draw() { ctx.globalAlpha=this.life/38; ctx.fillStyle=this.color; ctx.fillRect(this.x,this.y,this.size,this.size); ctx.globalAlpha=1; }
+        update(ts) { 
+            this.x += this.vx * ts; // 🔥 Time-based Movement
+            this.y += this.vy * ts; 
+            this.life -= 1 * ts; 
+            this.vy += 0.25 * ts; 
+        }
+        draw() { ctx.globalAlpha=Math.max(0, this.life)/38; ctx.fillStyle=this.color; ctx.fillRect(this.x,this.y,this.size,this.size); ctx.globalAlpha=1; }
     }
 
     class FloatingScore {
         constructor(x,y,pts) { this.x=x; this.y=y; this.pts=pts; this.life=45; this.vy=-1.5; }
-        update() { this.y += this.vy; this.life--; }
+        update(ts) { 
+            this.y += this.vy * ts; // 🔥 Time-based Movement
+            this.life -= 1 * ts; 
+        }
         draw() { 
+            ctx.globalAlpha = Math.max(0, this.life)/45;
             ctx.fillStyle = '#00ff9d'; ctx.font = 'bold 22px Courier New'; ctx.textAlign = 'center';
             ctx.fillText('+' + this.pts, this.x, this.y);
+            ctx.globalAlpha = 1;
         }
     }
 
@@ -276,8 +287,19 @@
         if (pts > 1000) shake = 12;
     }
 
-    function gameLoop() {
+    // 🔥 Added timestamp to correctly calculate Delta Time
+    function gameLoop(timestamp) {
         if (!isGameStarted || isGameOver) return;
+        
+        if (!timestamp) timestamp = performance.now();
+        let dt = timestamp - lastFrameTime;
+        lastFrameTime = timestamp;
+        
+        // Prevent huge jumps if tab is inactive
+        if (dt > 100) dt = 16.66; 
+        
+        const ts = dt / 16.66; // Time scale factor (1.0 at 60FPS)
+
         ctx.clearRect(0,0,canvas.width,canvas.height);
 
         if (score >= AIRDROP_HURDLE) { triggerVictory(); return; }
@@ -291,13 +313,13 @@
         }
 
         for (let i=spits.length-1;i>=0;i--) {
-            spits[i].update(); spits[i].draw();
+            spits[i].update(ts); spits[i].draw();
             if (spits[i].y < -40) spits.splice(i,1);
         }
 
         for (let i=enemies.length-1;i>=0;i--) {
             const e = enemies[i];
-            e.update(); e.draw();
+            e.update(ts); e.draw();
 
             for (let j=spits.length-1;j>=0;j--) {
                 const s = spits[j];
@@ -314,16 +336,16 @@
             }
         }
 
-        for (let i=particles.length-1;i>=0;i--) { particles[i].update(); particles[i].draw(); if (particles[i].life<=0) particles.splice(i,1); }
-        for (let i=floats.length-1;i>=0;i--) { floats[i].update(); floats[i].draw(); if (floats[i].life<=0) floats.splice(i,1); }
+        for (let i=particles.length-1;i>=0;i--) { particles[i].update(ts); particles[i].draw(); if (particles[i].life<=0) particles.splice(i,1); }
+        for (let i=floats.length-1;i>=0;i--) { floats[i].update(ts); floats[i].draw(); if (floats[i].life<=0) floats.splice(i,1); }
 
-        if (comboTimer > 0) comboTimer--; 
+        if (comboTimer > 0) comboTimer -= 1 * ts; 
         else { combo = 0; document.getElementById('combo').style.display='none'; }
 
         ctx.save();
         if (shake > 0) {
             ctx.translate(Math.random()*shake- shake/2, Math.random()*shake-shake/2);
-            shake *= 0.85;
+            shake *= Math.pow(0.85, ts); // Smooth decay independent of framerate
         }
         player.draw();
         ctx.restore();
@@ -366,6 +388,7 @@
         isGameStarted = true;
         gameStart = Date.now();
         lastSpawn = Date.now();
+        lastFrameTime = performance.now(); // Initialize Delta Time tracking
         
         initAudio();
         const bgm = document.getElementById('bgm');
@@ -373,7 +396,7 @@
             bgm.volume = 0.5;
             bgm.play().catch(e => console.log("BGM Play Error:", e));
         }
-        gameLoop();
+        requestAnimationFrame(gameLoop);
     }
 
     const deathLockScore = sessionStorage.getItem('dolo_death_lock');
