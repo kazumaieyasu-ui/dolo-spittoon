@@ -12,7 +12,6 @@
         #ui { position:absolute; top:15px; left:15px; color:gold; font-size:24px; font-weight:bold; text-shadow:2px 2px 4px #000; pointer-events:none; z-index:10; display:none; }
         #combo { position:absolute; top:60px; left:50%; transform:translateX(-50%); color:#00ff9d; font-size:28px; font-weight:bold; text-shadow:0 0 10px #00ff9d; pointer-events:none; display:none; z-index:10; }
         
-        /* Arcade Style Start Screen */
         #startScreen { position:absolute; top:0; left:0; width:100%; height:100%; background:rgba(10,10,20,0.85); display:flex; flex-direction:column; justify-content:center; align-items:center; z-index:20; }
         #startScreen h1 { color:gold; font-size:48px; line-height:1; text-shadow:4px 4px 0px #b30000, 0 0 20px gold; margin:0 0 10px 0; text-align:center; font-weight:900; letter-spacing: 2px;}
         #startScreen h2 { color:#fff; font-size:18px; margin:0 0 20px 0; text-align:center; letter-spacing:4px; text-shadow:2px 2px 0px #000; }
@@ -129,7 +128,7 @@
     let isPointerDown = false;
     let lastShotTime = 0;
     
-    const FIRE_RATE = 250; 
+    const FIRE_RATE = 120; 
     const AIRDROP_HURDLE = 69420;
     let particles = [], floats = [];
 
@@ -137,10 +136,9 @@
         constructor() { this.w=72; this.h=92; this.x=canvas.width/2-this.w/2; this.y=canvas.height-this.h-40; }
         draw() {
             if (ASSETS.player.complete && ASSETS.player.naturalWidth) { 
-                // 🔥 Aspect Ratio Fix (비율 붕괴 방지)
                 const ratio = ASSETS.player.naturalHeight / ASSETS.player.naturalWidth;
                 this.h = this.w * ratio; 
-                this.y = canvas.height - this.h - 40; // 바닥에 고정되도록 y축 재계산
+                this.y = canvas.height - this.h - 40; 
                 ctx.drawImage(ASSETS.player, this.x, this.y, this.w, this.h); 
                 return; 
             }
@@ -181,12 +179,15 @@
             this.w=68; this.h=78; 
             this.x = x !== undefined ? x : Math.random()*(canvas.width-this.w); 
             this.y=-this.h;
-            this.speed = 2.4 + (score / 15000); 
             this.type = ['johnD','mrG','doge','pepe'][Math.floor(Math.random()*4)];
+            
+            this.pts = (this.type === 'johnD' || this.type === 'mrG') ? 420 : 100;
+            
+            let baseSpeed = (this.type === 'johnD' || this.type === 'mrG') ? 1.6 : 1.0;
+            this.speed = baseSpeed + (score / 25000); 
         }
         draw() {
             if (ASSETS[this.type].complete && ASSETS[this.type].naturalWidth) { 
-                // 🔥 Aspect Ratio Fix (비율 붕괴 방지)
                 const ratio = ASSETS[this.type].naturalHeight / ASSETS[this.type].naturalWidth;
                 this.h = this.w * ratio; 
                 ctx.drawImage(ASSETS[this.type], this.x, this.y, this.w, this.h); 
@@ -234,8 +235,8 @@
     }
 
     function spawn() {
-        const baseInterval = Math.max(680 - (score/150), 300); 
-        const jitter = (Math.random() * 200) - 100; 
+        const baseInterval = Math.max(450 - (score/150), 180); 
+        const jitter = (Math.random() * 100) - 50; 
         const interval = baseInterval + jitter;
         
         if (Date.now()-lastSpawn > interval) { 
@@ -243,11 +244,11 @@
             let isOverlapping = true;
             let attempts = 0;
             
-            while(isOverlapping && attempts < 10) {
+            while(isOverlapping && attempts < 15) {
                 newX = Math.random()*(canvas.width - 68); 
                 isOverlapping = false;
                 for(let e of enemies) {
-                    if (e.y < 60 && Math.abs(e.x - newX) < 70) { 
+                    if (e.y < 70 && Math.abs(e.x - newX) < 70) { 
                         isOverlapping = true;
                         break;
                     }
@@ -284,8 +285,6 @@
         drawBackground();
         spawn();
         
-        if (score > 40000 && Math.random()<0.02) enemies.push(new Enemy());
-
         if (isPointerDown && Date.now() - lastShotTime > FIRE_RATE) {
             spits.push(new Spit(player.x, player.y));
             lastShotTime = Date.now();
@@ -303,7 +302,7 @@
             for (let j=spits.length-1;j>=0;j--) {
                 const s = spits[j];
                 if (s.x < e.x+e.w && s.x+s.w > e.x && s.y < e.y+e.h && s.y+s.h > e.y) {
-                    hitEffect(e.x+e.w/2, e.y+e.h/2, 420, e.type);
+                    hitEffect(e.x+e.w/2, e.y+e.h/2, e.pts, e.type);
                     enemies.splice(i,1); spits.splice(j,1);
                     break;
                 }
@@ -334,7 +333,6 @@
 
     function triggerGameOver() {
         isGameOver = true;
-        // 🔥 Death Lock: 죽으면 세션 스토리지에 기록 남김 (새로고침 막기)
         sessionStorage.setItem('dolo_death_lock', score); 
         
         document.getElementById('finalScore').innerText = score;
@@ -378,13 +376,11 @@
         gameLoop();
     }
 
-    // 🔥 Death Lock Check: 페이지 로드 시 락이 걸려있는지 확인
     const deathLockScore = sessionStorage.getItem('dolo_death_lock');
     if (deathLockScore !== null) {
         score = parseInt(deathLockScore);
-        triggerGameOver(); // 새로고침해도 가차 없이 게임오버 화면 띄움
+        triggerGameOver(); 
     } else {
-        // 락이 없으면 정상적으로 백그라운드 그리고 대기
         drawBackground();
         player.draw();
     }
@@ -420,15 +416,13 @@
         player.update(touch.clientX - canvas.offsetLeft);
     }, { passive: false });
 
-    // 🔥 X 공유 후 복귀 시 락 해제 및 재시작
     document.getElementById('reviveBtn').onclick = () => {
         const text = encodeURIComponent(`@DOLO_Sp I was crushing fake idols but died at ${score}... PTOOEY 💦 #DOLO`);
         window.open(`https://twitter.com/intent/tweet?text=${text}`, '_blank');
         
-        // 창으로 돌아왔을 때 작동
         window.addEventListener('focus', () => {
-            sessionStorage.removeItem('dolo_death_lock'); // 락 해제
-            location.reload(); // 새로고침하여 Start Screen 띄움
+            sessionStorage.removeItem('dolo_death_lock'); 
+            location.reload(); 
         }, {once:true});
     };
 
