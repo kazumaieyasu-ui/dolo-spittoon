@@ -142,8 +142,8 @@
 
     function getGameIntensity() {
         if (score >= 58000) return 1.0;
-        // Curve triggers immediately at 130 points (First Hit)
-        if (score >= 130) return 0.1 + 0.9 * ((score - 130) / 57870);
+        // 🔥 Reaches 30% intensity right at 1000 points, gradually scales to 1.0
+        if (score >= 1000) return 0.3 + 0.7 * ((score - 1000) / 57000);
         return 0; 
     }
 
@@ -197,10 +197,7 @@
             this.y=-this.h;
             this.type = ['johnD','mrG','doge','pepe'][Math.floor(Math.random()*4)];
             
-            // 🔥 Math Flawlessness: 130 points per target (130 * 534 = 69420 exact)
             this.pts = 130; 
-            
-            // 🔥 Base Speed boosted by 20% at the very start
             this.baseSpeed = (this.type === 'johnD' || this.type === 'mrG') ? 2.88 : 1.8;
         }
         draw() {
@@ -214,8 +211,8 @@
         }
         update(ts) { 
             const intensity = getGameIntensity();
-            // Adjusted Bonus to ensure the absolute Maximum Speed is mathematically identical to before
-            const MAX_SPEED_BONUS = 7.32; 
+            // 🔥 Max speed bonus reduced by 20% (7.32 -> 5.86)
+            const MAX_SPEED_BONUS = 5.86; 
             const currentSpeed = this.baseSpeed + (intensity * MAX_SPEED_BONUS);
             
             this.y += currentSpeed * ts; 
@@ -269,7 +266,6 @@
 
     function spawn() {
         const intensity = getGameIntensity();
-        // 🔥 Spawn Rate base sped up by 20%
         const maxInterval = 360; 
         const minInterval = 100; 
         const baseInterval = maxInterval - (intensity * (maxInterval - minInterval)); 
