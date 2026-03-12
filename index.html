@@ -127,9 +127,10 @@
     let lastSpawn = 0, gameStart = 0;
     let isPointerDown = false;
     let lastShotTime = 0;
-    let lastFrameTime = performance.now(); // 🔥 Delta Time tracking
+    let lastFrameTime = performance.now(); 
     
-    const FIRE_RATE = 120; 
+    // 🔥 Fire rate remains nerfed
+    const FIRE_RATE = 150; 
     const AIRDROP_HURDLE = 69420;
     let particles = [], floats = [];
 
@@ -152,11 +153,12 @@
     class Spit {
         constructor(x, y) {
             this.x = x + 33; this.y = y + 28;
-            this.w = 12; this.h = 20; this.speed = 23;
+            this.w = 12; this.h = 20; 
+            this.speed = 18.4; 
             this.trail = [];
         }
         update(ts) {
-            this.y -= this.speed * ts; // 🔥 Time-based Movement
+            this.y -= this.speed * ts; 
             this.trail.push({x: this.x + 3, y: this.y + 12});
             if (this.trail.length > 7) this.trail.shift();
         }
@@ -182,10 +184,14 @@
             this.y=-this.h;
             this.type = ['johnD','mrG','doge','pepe'][Math.floor(Math.random()*4)];
             
-            this.pts = (this.type === 'johnD' || this.type === 'mrG') ? 420 : 100;
+            // 🔥 Strict 10 points
+            this.pts = 10; 
             
+            // 🔥 Speed scaling every 10,000 points
+            let stage = Math.floor(score / 10000);
             let baseSpeed = (this.type === 'johnD' || this.type === 'mrG') ? 1.6 : 1.0;
-            this.speed = baseSpeed + (score / 25000); 
+            // Every 10k points, speed increases significantly
+            this.speed = baseSpeed + (stage * 0.8); 
         }
         draw() {
             if (ASSETS[this.type].complete && ASSETS[this.type].naturalWidth) { 
@@ -197,7 +203,7 @@
             ctx.fillStyle='#f5d0b5'; ctx.fillRect(this.x+10,this.y+10,48,35); 
         }
         update(ts) { 
-            this.y += this.speed * ts; // 🔥 Time-based Movement
+            this.y += this.speed * ts; 
             if (score > 30000 && (this.type==='johnD' || this.type==='mrG')) {
                  if(Math.random() < 0.05 * ts) this.x += (Math.random()-0.5)*15 * ts; 
             }
@@ -210,7 +216,7 @@
             this.life=38; this.size=8; this.color=color;
         }
         update(ts) { 
-            this.x += this.vx * ts; // 🔥 Time-based Movement
+            this.x += this.vx * ts; 
             this.y += this.vy * ts; 
             this.life -= 1 * ts; 
             this.vy += 0.25 * ts; 
@@ -221,7 +227,7 @@
     class FloatingScore {
         constructor(x,y,pts) { this.x=x; this.y=y; this.pts=pts; this.life=45; this.vy=-1.5; }
         update(ts) { 
-            this.y += this.vy * ts; // 🔥 Time-based Movement
+            this.y += this.vy * ts; 
             this.life -= 1 * ts; 
         }
         draw() { 
@@ -246,7 +252,9 @@
     }
 
     function spawn() {
-        const baseInterval = Math.max(450 - (score/150), 180); 
+        // 🔥 Spawn rate scaling every 10,000 points
+        let stage = Math.floor(score / 10000);
+        const baseInterval = Math.max(450 - (stage * 50), 120); 
         const jitter = (Math.random() * 100) - 50; 
         const interval = baseInterval + jitter;
         
@@ -272,10 +280,21 @@
     }
 
     function hitEffect(x,y,pts, type) {
+        if (isGameOver) return; // Prevent logic if already won
+
         combo++; comboTimer = 60;
         document.getElementById('combo').style.display = 'block';
         document.getElementById('combo').innerText = combo + ' COMBO!';
-        score += pts * Math.min(combo, 5);
+        
+        // 🔥 Exact Score Cutoff Logic (No Combo Multiplier)
+        let gained = pts; 
+        if (score + gained >= AIRDROP_HURDLE) {
+            gained = AIRDROP_HURDLE - score;
+            score = AIRDROP_HURDLE;
+        } else {
+            score += gained;
+        }
+        
         document.getElementById('score').innerText = score;
 
         playSoundEffect(type);
@@ -283,11 +302,15 @@
         for (let i=0;i<48;i++) { particles.push(new Particle(x,y, combo>3 ? '#ff00aa' : '#ffd700')); }
         for (let i=0;i<12;i++) { const p = new Particle(x,y,'#ffff00'); p.life = 22; particles.push(p); }
 
-        floats.push(new FloatingScore(x,y, pts * Math.min(combo,5)));
-        if (pts > 1000) shake = 12;
+        floats.push(new FloatingScore(x,y, gained));
+        if (gained > 0) shake = 8;
+
+        // 🔥 Stop Game Instantly if Hurdle is Met
+        if (score >= AIRDROP_HURDLE) {
+            triggerVictory();
+        }
     }
 
-    // 🔥 Added timestamp to correctly calculate Delta Time
     function gameLoop(timestamp) {
         if (!isGameStarted || isGameOver) return;
         
@@ -295,14 +318,10 @@
         let dt = timestamp - lastFrameTime;
         lastFrameTime = timestamp;
         
-        // Prevent huge jumps if tab is inactive
         if (dt > 100) dt = 16.66; 
-        
-        const ts = dt / 16.66; // Time scale factor (1.0 at 60FPS)
+        const ts = dt / 16.66; 
 
         ctx.clearRect(0,0,canvas.width,canvas.height);
-
-        if (score >= AIRDROP_HURDLE) { triggerVictory(); return; }
 
         drawBackground();
         spawn();
@@ -330,7 +349,7 @@
                 }
             }
 
-            if (e && (e.y > canvas.height || 
+            if (e && !isGameOver && (e.y > canvas.height || 
                 (e.x < player.x+player.w && e.x+e.w > player.x && e.y < player.y+player.h && e.y+e.h > player.y))) {
                 triggerGameOver();
             }
@@ -345,12 +364,12 @@
         ctx.save();
         if (shake > 0) {
             ctx.translate(Math.random()*shake- shake/2, Math.random()*shake-shake/2);
-            shake *= Math.pow(0.85, ts); // Smooth decay independent of framerate
+            shake *= Math.pow(0.85, ts); 
         }
         player.draw();
         ctx.restore();
 
-        requestAnimationFrame(gameLoop);
+        if (!isGameOver) requestAnimationFrame(gameLoop);
     }
 
     function triggerGameOver() {
@@ -388,7 +407,7 @@
         isGameStarted = true;
         gameStart = Date.now();
         lastSpawn = Date.now();
-        lastFrameTime = performance.now(); // Initialize Delta Time tracking
+        lastFrameTime = performance.now(); 
         
         initAudio();
         const bgm = document.getElementById('bgm');
