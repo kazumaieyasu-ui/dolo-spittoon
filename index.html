@@ -129,7 +129,6 @@
     let lastShotTime = 0;
     let lastFrameTime = performance.now(); 
     
-    // 🔥 Fire rate remains nerfed
     const FIRE_RATE = 150; 
     const AIRDROP_HURDLE = 69420;
     let particles = [], floats = [];
@@ -154,7 +153,8 @@
         constructor(x, y) {
             this.x = x + 33; this.y = y + 28;
             this.w = 12; this.h = 20; 
-            this.speed = 18.4; 
+            // 🔥 Projectile speed reduced by exactly 30% from base 23 (now 16.1)
+            this.speed = 16.1; 
             this.trail = [];
         }
         update(ts) {
@@ -184,14 +184,15 @@
             this.y=-this.h;
             this.type = ['johnD','mrG','doge','pepe'][Math.floor(Math.random()*4)];
             
-            // 🔥 Strict 10 points
             this.pts = 10; 
             
-            // 🔥 Speed scaling every 10,000 points
-            let stage = Math.floor(score / 10000);
             let baseSpeed = (this.type === 'johnD' || this.type === 'mrG') ? 1.6 : 1.0;
-            // Every 10k points, speed increases significantly
-            this.speed = baseSpeed + (stage * 0.8); 
+            // 🔥 100-point Breakpoint: Immediate 1.5x speed multiplier
+            if (score >= 100) {
+                baseSpeed *= 1.5;
+            }
+            // 🔥 Continuous aggressive scaling
+            this.speed = baseSpeed + (score / 6000); 
         }
         draw() {
             if (ASSETS[this.type].complete && ASSETS[this.type].naturalWidth) { 
@@ -204,7 +205,7 @@
         }
         update(ts) { 
             this.y += this.speed * ts; 
-            if (score > 30000 && (this.type==='johnD' || this.type==='mrG')) {
+            if (score > 10000 && (this.type==='johnD' || this.type==='mrG')) {
                  if(Math.random() < 0.05 * ts) this.x += (Math.random()-0.5)*15 * ts; 
             }
         }
@@ -252,10 +253,9 @@
     }
 
     function spawn() {
-        // 🔥 Spawn rate scaling every 10,000 points
-        let stage = Math.floor(score / 10000);
-        const baseInterval = Math.max(450 - (stage * 50), 120); 
-        const jitter = (Math.random() * 100) - 50; 
+        // 🔥 Extreme Spawn Scaling (Drops minimum spawn delay to 80ms)
+        const baseInterval = Math.max(380 - (score / 40), 80); 
+        const jitter = (Math.random() * 80) - 40; 
         const interval = baseInterval + jitter;
         
         if (Date.now()-lastSpawn > interval) { 
@@ -280,13 +280,13 @@
     }
 
     function hitEffect(x,y,pts, type) {
-        if (isGameOver) return; // Prevent logic if already won
+        if (isGameOver) return; 
 
         combo++; comboTimer = 60;
         document.getElementById('combo').style.display = 'block';
         document.getElementById('combo').innerText = combo + ' COMBO!';
         
-        // 🔥 Exact Score Cutoff Logic (No Combo Multiplier)
+        // 🔥 Absolute Score Logic (Max 69420)
         let gained = pts; 
         if (score + gained >= AIRDROP_HURDLE) {
             gained = AIRDROP_HURDLE - score;
@@ -305,7 +305,6 @@
         floats.push(new FloatingScore(x,y, gained));
         if (gained > 0) shake = 8;
 
-        // 🔥 Stop Game Instantly if Hurdle is Met
         if (score >= AIRDROP_HURDLE) {
             triggerVictory();
         }
@@ -322,6 +321,13 @@
         const ts = dt / 16.66; 
 
         ctx.clearRect(0,0,canvas.width,canvas.height);
+
+        if (score >= AIRDROP_HURDLE) { 
+            score = AIRDROP_HURDLE;
+            document.getElementById('score').innerText = score;
+            triggerVictory(); 
+            return; 
+        }
 
         drawBackground();
         spawn();
