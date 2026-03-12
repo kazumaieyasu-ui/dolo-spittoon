@@ -142,7 +142,6 @@
 
     function getGameIntensity() {
         if (score >= 58000) return 1.0;
-        // 🔥 Reaches 30% intensity right at 1000 points, gradually scales to 1.0
         if (score >= 1000) return 0.3 + 0.7 * ((score - 1000) / 57000);
         return 0; 
     }
@@ -197,7 +196,9 @@
             this.y=-this.h;
             this.type = ['johnD','mrG','doge','pepe'][Math.floor(Math.random()*4)];
             
-            this.pts = 130; 
+            // 🔥 Math Flawlessness: 260 pts (260 * 267 = exactly 69420)
+            this.pts = 260; 
+            
             this.baseSpeed = (this.type === 'johnD' || this.type === 'mrG') ? 2.88 : 1.8;
         }
         draw() {
@@ -211,14 +212,20 @@
         }
         update(ts) { 
             const intensity = getGameIntensity();
-            // 🔥 Max speed bonus reduced by 20% (7.32 -> 5.86)
-            const MAX_SPEED_BONUS = 5.86; 
+            // 🔥 Max Speed reduced by 20% from previous 5.86
+            const MAX_SPEED_BONUS = 4.68; 
             const currentSpeed = this.baseSpeed + (intensity * MAX_SPEED_BONUS);
             
             this.y += currentSpeed * ts; 
             
-            if (score > 10000 && (this.type==='johnD' || this.type==='mrG')) {
-                 if(Math.random() < 0.05 * ts) this.x += (Math.random()-0.5)*15 * ts; 
+            // 🔥 Glitch Dodge: Teleports sideways by exactly one body width unpredictably after 50k
+            if (score >= 50000 && (this.type === 'johnD' || this.type === 'mrG')) {
+                 if(Math.random() < 0.02 * ts) {
+                     const jumpDirection = Math.random() > 0.5 ? 1 : -1;
+                     // Jump roughly 1 full hitbox width to actually dodge the spit
+                     const jumpDist = this.w * jumpDirection;
+                     this.x = Math.max(0, Math.min(canvas.width - this.w, this.x + jumpDist));
+                 }
             }
         }
     }
