@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>DOLO's Spittoon: The Fallen Idols</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        body { margin:0; padding:0; overflow:hidden; background:#0f0f1a; font-family:'Courier New', monospace; touch-action:none; }
+        #gameCanvas { display:block; margin:0 auto; background:#1a1a2e; box-shadow:0 0 30px gold; }
+        
+        #ui { position:absolute; top:15px; left:15px; color:gold; font-size:24px; font-weight:bold; text-shadow:2px 2px 4px #000; pointer-events:none; z-index:10; display:none; }
+        #combo { position:absolute; top:60px; left:50%; transform:translateX(-50%); color:#00ff9d; font-size:28px; font-weight:bold; text-shadow:0 0 10px #00ff9d; pointer-events:none; display:none; z-index:10; }
+        
+        #startScreen { position:absolute; top:0; left:0; width:100%; height:100%; background:rgba(15,15,26,0.95); display:flex; flex-direction:column; justify-content:center; align-items:center; z-index:20; }
+        #startScreen h1 { color:gold; font-size:42px; text-shadow:0 0 20px gold; margin-bottom:10px; text-align:center; }
+        #startScreen p { color:white; font-size:16px; margin-bottom:50px; text-align:center; }
+        #startBtn { background:transparent; color:#00ff9d; border:2px solid #00ff9d; padding:15px 50px; font-size:28px; animation:blink 1.2s infinite; width:auto; border-radius:8px; cursor:pointer; }
+        @keyframes blink { 0% { opacity:1; box-shadow:0 0 20px #00ff9d; } 50% { opacity:0.3; box-shadow:none; } 100% { opacity:1; box-shadow:0 0 20px #00ff9d; } }
+
+        #gameover { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); text-align:center; color:white; display:none; background:rgba(0,0,0,0.97); padding:30px; border:3px solid gold; border-radius:15px; width:90%; max-width:340px; z-index:30; }
+        button { background:gold; color:#000; border:none; padding:14px; font-size:17px; font-weight:bold; margin:8px 0; width:100%; border-radius:8px; cursor:pointer; }
+        button:hover { background:#ffcc00; transform:scale(1.05); }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas"></canvas>
+    
+    <audio id="bgm" src="Victory Glitch Flex.mp3" loop></audio>
+
+    <div id="startScreen">
+        <h1>DOLO's Spittoon</h1>
+        <p>Destroy the fallen idols. Claim the legend.</p>
+        <button id="startBtn">START</button>
+    </div>
+
+    <div id="ui">SCORE: <span id="score">0</span> / 69420</div>
+    <div id="combo"></div>
+    
+    <div id="gameover">
+        <h2 style="color:gold;margin:0 0 15px;">PTOOEY 💦</h2>
+        <p>Your Score: <strong id="finalScore" style="font-size:32px;color:gold;"></strong></p>
+        <p id="message" style="line-height:1.5;white-space:pre-wrap;"></p>
+        <button id="reviveBtn">Share on X to Revive</button>
+        <button id="claimBtn" style="display:none;background:#00ff9d;color:#000;">Claim $DOLO Airdrop</button>
+        <button id="retryBtn">Retry from Start</button>
+    </div>
+
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    const tg = window.Telegram?.WebApp || null;
+    if (tg) { tg.expand(); tg.ready(); }
+
+    canvas.width = window.innerWidth > 600 ? 600 : window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    // 🔥 Asset auto-loading system (Place PNG files in the folder with exact names)
+    const ASSETS = {};
+    const imgNames = {
+        player: 'dolo.png', 
+        johnD: 'john_d.png', 
+        mrG: 'mr_g.png', 
+        doge: 'doge.png', 
+        pepe: 'pepe.png', 
+        bg: 'bg.png' // Save background image as bg.png if available
+    };
+
+    for (let key in imgNames) {
+        ASSETS[key] = new Image();
+        ASSETS[key].src = imgNames[key];
+    }
+
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    const audioCtx = new AudioContext();
+
+    function playSoundEffect(type) {
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const oscillator = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+        
+        // Sound design matching laundered identifiers
+        if (type === 'johnD') {
+            oscillator.type = 'sawtooth';
+            oscillator.frequency.setValueAtTime(150, audioCtx.currentTime);
+            oscillator.frequency.exponentialRampToValueAtTime(40, audioCtx.currentTime + 0.2); 
+            gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+            oscillator.start(); oscillator.stop(audioCtx.currentTime + 0.2);
+        } else if (type === 'mrG') {
+            oscillator.type = 'square';
+            oscillator.frequency.setValueAtTime(300, audioCtx.currentTime);
+            oscillator.frequency.linearRampToValueAtTime(100, audioCtx.currentTime + 0.15); 
+            gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            gainNode.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
+            oscillator.start(); oscillator.stop(audioCtx.currentTime + 0.15);
+        } else {
+            oscillator.type = 'sine';
+            oscillator.frequency.setValueAtTime(500, audioCtx.currentTime);
+            oscillator.frequency.exponentialRampToValueAtTime(200, audioCtx.currentTime + 0.1); 
+            gainNode.gain.setValueAtTime(0.2, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+            oscillator.start(); oscillator.stop(audioCtx.currentTime + 0.1);
+        }
+    }
+
+    let score = 0, combo = 0, comboTimer = 0, shake = 0;
+    let isGameOver = false, hasRevived = false, isGameStarted = false;
+    let lastSpawn = 0, gameStart = 0;
+    let isPointerDown = false;
+    let lastShotTime = 0;
+    
+    const FIRE_RATE = 250; 
+    const AIRDROP_HURDLE = 69420;
+    let particles = [], floats = [];
+
+    class Player {
+        constructor() { this.w=72; this.h=92; this.x=canvas.width/2-this.w/2; this.y=canvas.height-this.h-40; }
+        draw() {
+            // Output asset if loaded, otherwise render fallback shape
+            if (ASSETS.player.complete && ASSETS.player.naturalHeight !== 0) { 
+                ctx.drawImage(ASSETS.player, this.x, this.y, this.w, this.h); 
+                return; 
+            }
+            ctx.fillStyle = '#f8f8f8'; ctx.beginPath(); ctx.ellipse(this.x+36, this.y+45, 32, 38, 0, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = '#fff'; ctx.fillRect(this.x+12, this.y+8, 48, 25);
+            ctx.fillStyle = '#ff0000'; ctx.fillRect(this.x+18, this.y+18, 36, 12); 
+        }
+        update(tx) { this.x = Math.max(0, Math.min(canvas.width-this.w, tx-this.w/2)); }
+    }
+
+    class Spit {
+        constructor(x, y) {
+            this.x = x + 33; this.y = y + 28;
+            this.w = 12; this.h = 20; this.speed = 23;
+            this.trail = [];
+        }
+        update() {
+            this.y -= this.speed;
+            this.trail.push({x: this.x + 3, y: this.y + 12});
+            if (this.trail.length > 7) this.trail.shift();
+        }
+        draw() {
+            ctx.shadowBlur = 18; ctx.shadowColor = '#88eeff';
+            for (let i = 0; i < this.trail.length; i++) {
+                const a = (i + 1) / this.trail.length * 0.7;
+                ctx.globalAlpha = a; ctx.fillStyle = '#44ddff';
+                ctx.fillRect(this.trail[i].x, this.trail[i].y, 5, 7);
+            }
+            ctx.globalAlpha = 1; ctx.shadowBlur = 0;
+
+            ctx.shadowBlur = 35; ctx.shadowColor = '#66eeff';
+            ctx.fillStyle = '#00ccff'; ctx.beginPath();
+            ctx.ellipse(this.x + 4, this.y + 10, 6, 15, 0, 0, Math.PI * 2); ctx.fill();
+
+            ctx.strokeStyle = 'rgba(255,255,255,0.85)'; ctx.lineWidth = 2.5; ctx.beginPath();
+            ctx.moveTo(this.x + 1, this.y + 4); ctx.quadraticCurveTo(this.x + 4, this.y + 9, this.x + 7, this.y + 16); ctx.stroke();
+            ctx.shadowBlur = 0;
+        }
+    }
+
+    class Enemy {
+        constructor(x) {
+            this.w=68; this.h=78; 
+            this.x = x !== undefined ? x : Math.random()*(canvas.width-this.w); 
+            this.y=-this.h;
+            this.speed = 2.4 + (score / 15000); 
+            // 🔥 Applied laundered names
+            this.type = ['johnD','mrG','doge','pepe'][Math.floor(Math.random()*4)];
+        }
+        draw() {
+            if (ASSETS[this.type].complete && ASSETS[this.type].naturalHeight !== 0) { 
+                ctx.drawImage(ASSETS[this.type], this.x, this.y, this.w, this.h); 
+                return; 
+            }
+            // Fallback rendering
+            if (this.type==='johnD') { ctx.fillStyle='#f5d0b5'; ctx.fillRect(this.x+8,this.y+18,52,38); ctx.fillStyle='#c00'; ctx.fillRect(this.x+6,this.y+4,56,18); }
+            else if (this.type==='mrG') { ctx.fillStyle='#f5d0b5'; ctx.fillRect(this.x+10,this.y+10,48,35); ctx.fillStyle='#555'; ctx.fillRect(this.x+8,this.y+38,52,35); }
+            else if (this.type==='doge') { ctx.fillStyle='#c8a'; ctx.beginPath(); ctx.arc(this.x+34,this.y+35,28,0,Math.PI*2); ctx.fill(); }
+            else { ctx.fillStyle='#0a0'; ctx.beginPath(); ctx.arc(this.x+34,this.y+35,29,0,Math.PI*2); ctx.fill(); }
+        }
+        update() { 
+            this.y += this.speed; 
+            if (score > 30000 && (this.type==='johnD' || this.type==='mrG')) {
+                 if(Math.random() < 0.05) this.x += (Math.random()-0.5)*15; 
+            }
+        }
+    }
+
+    class Particle {
+        constructor(x,y,color='#ffd700') { 
+            this.x=x; this.y=y; this.vx=(Math.random()-0.5)*14; this.vy=(Math.random()-0.5)*14-5; 
+            this.life=38; this.size=8; this.color=color;
+        }
+        update() { this.x+=this.vx; this.y+=this.vy; this.life--; this.vy+=0.25; }
+        draw() { ctx.globalAlpha=this.life/38; ctx.fillStyle=this.color; ctx.fillRect(this.x,this.y,this.size,this.size); ctx.globalAlpha=1; }
+    }
+
+    class FloatingScore {
+        constructor(x,y,pts) { this.x=x; this.y=y; this.pts=pts; this.life=45; this.vy=-1.5; }
+        update() { this.y += this.vy; this.life--; }
+        draw() { 
+            ctx.fillStyle = '#00ff9d'; ctx.font = 'bold 22px Courier New'; ctx.textAlign = 'center';
+            ctx.fillText('+' + this.pts, this.x, this.y);
+        }
+    }
+
+    const player = new Player();
+    let spits = [], enemies = [];
+
+    function drawBackground() {
+        if (ASSETS.bg.complete && ASSETS.bg.naturalHeight !== 0) {
+            ctx.drawImage(ASSETS.bg,0,0,canvas.width,canvas.height);
+        } else {
+            const grad = ctx.createLinearGradient(0,0,0,canvas.height);
+            grad.addColorStop(0,'#2a1f4a'); grad.addColorStop(1,'#0f0f1a');
+            ctx.fillStyle=grad; ctx.fillRect(0,0,canvas.width,canvas.height);
+        }
+    }
+
+    function spawn() {
+        const interval = Math.max(680 - (score/150), 300); 
+        
+        if (Date.now()-lastSpawn > interval) { 
+            let newX;
+            let isOverlapping = true;
+            let attempts = 0;
+            
+            while(isOverlapping && attempts < 10) {
+                newX = Math.random()*(canvas.width - 68); 
+                isOverlapping = false;
+                for(let e of enemies) {
+                    if (e.y < 50 && Math.abs(e.x - newX) < 70) { 
+                        isOverlapping = true;
+                        break;
+                    }
+                }
+                attempts++;
+            }
+            
+            enemies.push(new Enemy(newX)); 
+            lastSpawn = Date.now(); 
+        }
+    }
+
+    function hitEffect(x,y,pts, type) {
+        combo++; comboTimer = 60;
+        document.getElementById('combo').style.display = 'block';
+        document.getElementById('combo').innerText = combo + ' COMBO!';
+        score += pts * Math.min(combo, 5);
+        document.getElementById('score').innerText = score;
+
+        playSoundEffect(type);
+
+        for (let i=0;i<48;i++) { particles.push(new Particle(x,y, combo>3 ? '#ff00aa' : '#ffd700')); }
+        for (let i=0;i<12;i++) { const p = new Particle(x,y,'#ffff00'); p.life = 22; particles.push(p); }
+
+        floats.push(new FloatingScore(x,y, pts * Math.min(combo,5)));
+        if (pts > 1000) shake = 12;
+    }
+
+    function gameLoop() {
+        if (!isGameStarted || isGameOver) return;
+        ctx.clearRect(0,0,canvas.width,canvas.height);
+
+        if (score >= AIRDROP_HURDLE) {
+            triggerVictory();
+            return;
+        }
+
+        drawBackground();
+        spawn();
+        
+        if (score > 40000 && Math.random()<0.02) enemies.push(new Enemy());
+
+        if (isPointerDown && Date.now() - lastShotTime > FIRE_RATE) {
+            spits.push(new Spit(player.x, player.y));
+            lastShotTime = Date.now();
+        }
+
+        for (let i=spits.length-1;i>=0;i--) {
+            spits[i].update(); spits[i].draw();
+            if (spits[i].y < -40) spits.splice(i,1);
+        }
+
+        for (let i=enemies.length-1;i>=0;i--) {
+            const e = enemies[i];
+            e.update(); e.draw();
+
+            for (let j=spits.length-1;j>=0;j--) {
+                const s = spits[j];
+                if (s.x < e.x+e.w && s.x+s.w > e.x && s.y < e.y+e.h && s.y+s.h > e.y) {
+                    hitEffect(e.x+e.w/2, e.y+e.h/2, 420, e.type);
+                    enemies.splice(i,1); spits.splice(j,1);
+                    break;
+                }
+            }
+
+            if (e && (e.y > canvas.height || 
+                (e.x < player.x+player.w && e.x+e.w > player.x && e.y < player.y+player.h && e.y+e.h > player.y))) {
+                gameOver();
+            }
+        }
+
+        for (let i=particles.length-1;i>=0;i--) { particles[i].update(); particles[i].draw(); if (particles[i].life<=0) particles.splice(i,1); }
+        for (let i=floats.length-1;i>=0;i--) { floats[i].update(); floats[i].draw(); if (floats[i].life<=0) floats.splice(i,1); }
+
+        if (comboTimer > 0) comboTimer--; 
+        else { combo = 0; document.getElementById('combo').style.display='none'; }
+
+        ctx.save();
+        if (shake > 0) {
+            ctx.translate(Math.random()*shake- shake/2, Math.random()*shake-shake/2);
+            shake *= 0.85;
+        }
+        player.draw();
+        ctx.restore();
+
+        requestAnimationFrame(gameLoop);
+    }
+
+    function gameOver() {
+        isGameOver = true;
+        document.getElementById('finalScore').innerText = score;
+        document.getElementById('message').innerText = `Crushed by the fake idols...\nScore: ${score}\n\nShare on X for ONE revive!\n"You're Fired. PTOOEY."`;
+        document.getElementById('reviveBtn').style.display = 'block';
+        document.getElementById('claimBtn').style.display = 'none';
+        document.getElementById('gameover').style.display = 'block';
+        
+        const bgm = document.getElementById('bgm');
+        if(bgm) bgm.pause(); 
+    }
+
+    function triggerVictory() {
+        isGameOver = true;
+        document.getElementById('finalScore').innerText = score;
+        document.getElementById('message').innerHTML = `All fake idols shattered!<br>Airdrop list confirmed.<br><br>The legend begins. PTOOEY. 💦`;
+        document.getElementById('reviveBtn').style.display = 'none';
+        document.getElementById('claimBtn').style.display = 'block';
+        document.getElementById('gameover').style.display = 'block';
+        
+        const bgm = document.getElementById('bgm');
+        if(bgm) bgm.pause(); 
+    }
+
+    document.getElementById('startBtn').addEventListener('click', () => {
+        document.getElementById('startScreen').style.display = 'none';
+        document.getElementById('ui').style.display = 'block';
+        isGameStarted = true;
+        gameStart = Date.now();
+        lastSpawn = Date.now();
+        
+        const bgm = document.getElementById('bgm');
+        if(bgm) {
+            bgm.volume = 0.5;
+            bgm.play().catch(e => console.log("BGM Play Error:", e));
+        }
+        
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+
+        gameLoop();
+    });
+
+    canvas.addEventListener('pointerdown', e => {
+        if (!isGameStarted || isGameOver) return;
+        player.update(e.clientX - canvas.offsetLeft);
+        spits.push(new Spit(player.x, player.y));
+        isPointerDown = true;
+        lastShotTime = Date.now();
+    });
+
+    canvas.addEventListener('pointerup', () => { isPointerDown = false; });
+    canvas.addEventListener('pointerleave', () => { isPointerDown = false; });
+    canvas.addEventListener('pointercancel', () => { isPointerDown = false; });
+
+    canvas.addEventListener('pointermove', e => {
+        if (isGameStarted && !isGameOver) player.update(e.clientX - canvas.offsetLeft);
+    });
+
+    canvas.addEventListener('touchmove', e => {
+        if (!isGameStarted || isGameOver) return;
+        e.preventDefault();
+        const touch = e.touches[0];
+        player.update(touch.clientX - canvas.offsetLeft);
+    }, { passive: false });
+
+    document.getElementById('reviveBtn').onclick = () => {
+        if (hasRevived) return;
+        const text = encodeURIComponent(`@DOLO_Sp I was crushing fake idols but died at ${score}... Begging for a revive! PTOOEY 💦 #DOLO`);
+        window.open(`https://twitter.com/intent/tweet?text=${text}`, '_blank');
+        window.addEventListener('focus', () => {
+            isGameOver = false; hasRevived = true; document.getElementById('gameover').style.display='none';
+            enemies.forEach(e=>e.y-=300); 
+            const bgm = document.getElementById('bgm');
+            if(bgm) bgm.play(); 
+            gameLoop();
+        }, {once:true});
+    };
+
+    document.getElementById('retryBtn').onclick = () => location.reload();
+    document.getElementById('claimBtn').onclick = () => alert('✅ Verification pending. Connect Wallet in the next step.');
+
+    window.addEventListener('resize', () => {
+        canvas.width = window.innerWidth > 600 ? 600 : window.innerWidth;
+        canvas.height = window.innerHeight;
+        player.y = canvas.height - player.h - 40;
+    });
+
+    // Initial background and player setup immediately after screen load
+    drawBackground();
+    player.draw();
+
+</script>
+</body>
+</html>
