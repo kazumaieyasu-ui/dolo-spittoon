@@ -86,7 +86,6 @@
 
     let audioCtx;
 
-    // 🔥 Indestructible Audio Wrapper
     function initAudio() {
         try {
             const AudioCtxClass = window.AudioContext || window.webkitAudioContext;
@@ -199,7 +198,9 @@
             this.y=-this.h;
             this.type = ['johnD','mrG','doge','pepe'][Math.floor(Math.random()*4)];
             
-            this.pts = 20; 
+            // 🔥 Exact 60 points per target
+            this.pts = 60; 
+            
             this.baseSpeed = (this.type === 'johnD' || this.type === 'mrG') ? 2.4 : 1.5;
         }
         draw() {
@@ -426,7 +427,6 @@
         } catch(e) {}
     }
 
-    // 🔥 Bulletproof Start Sequence
     function startGameFlow(e) {
         if (e) e.preventDefault();
         if (isGameStarted) return; 
@@ -451,7 +451,6 @@
         requestAnimationFrame(gameLoop);
     }
 
-    // Auto-check death lock
     try {
         const deathLockScore = sessionStorage.getItem('dolo_death_lock');
         if (deathLockScore !== null) {
@@ -466,7 +465,6 @@
         player.draw();
     }
 
-    // 🔥 Dual Event Listeners for Mobile Reliability
     const startBtn = document.getElementById('startBtn');
     startBtn.addEventListener('pointerdown', startGameFlow);
     startBtn.addEventListener('click', startGameFlow);
@@ -500,7 +498,6 @@
         player.update(touch.clientX - canvas.offsetLeft);
     }, { passive: false });
 
-    // 🔥 Multi-sensor Unlock System
     document.getElementById('reviveBtn').onclick = () => {
         const text = encodeURIComponent(`@DOLO_Sp I was crushing fake idols but died at ${score}... PTOOEY 💦 #DOLO`);
         window.open(`https://twitter.com/intent/tweet?text=${text}`, '_blank');
