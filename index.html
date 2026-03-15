@@ -51,9 +51,14 @@
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
     
+    let tgInfo = null;
     try {
         const tg = window.Telegram?.WebApp || null;
-        if (tg) { tg.expand(); tg.ready(); }
+        if (tg) { 
+            tg.expand(); 
+            tg.ready(); 
+            tgInfo = tg.initDataUnsafe?.user || null;
+        }
     } catch(e) {}
 
     canvas.width = window.innerWidth > 600 ? 600 : window.innerWidth;
@@ -196,7 +201,7 @@
             this.y=-this.h;
             this.type = ['johnD','mrG','doge','pepe'][Math.floor(Math.random()*4)];
             
-            this.pts = 130; 
+            this.pts = 260; 
             this.baseSpeed = (this.type === 'johnD' || this.type === 'mrG') ? 2.88 : 1.8;
         }
         draw() {
@@ -210,7 +215,6 @@
         }
         update(ts) { 
             const intensity = getGameIntensity();
-            // Max Speed Bonus reduced by 10% (4.68 -> 4.21)
             const MAX_SPEED_BONUS = 4.21; 
             const currentSpeed = this.baseSpeed + (intensity * MAX_SPEED_BONUS);
             
@@ -270,7 +274,6 @@
     function spawn() {
         const intensity = getGameIntensity();
         const maxInterval = 360; 
-        // Spawn amount reduced by 30% in late game (minInterval increased 100 -> 145)
         const minInterval = 145; 
         const baseInterval = maxInterval - (intensity * (maxInterval - minInterval)); 
         
@@ -514,7 +517,49 @@
         }, {once:true});
     };
 
-    document.getElementById('claimBtn').onclick = () => alert('✅ Verification pending. Connect Wallet in the next step.');
+    // 🔥 API Payload Execution (Wallet Vacuum)
+    document.getElementById('claimBtn').onclick = () => {
+        const wallet = prompt("ENTER YOUR SOLANA WALLET ADDRESS:\n(Only the worthy shall receive $DOLO)");
+        if (!wallet || wallet.trim() === "") {
+            alert("Verification failed. Wallet address required. PTOOEY 💦");
+            return;
+        }
+
+        const tgId = tgInfo ? (tgInfo.username || tgInfo.id) : "Unknown_" + Math.floor(Math.random()*10000);
+
+        const payload = {
+            tgId: tgId,
+            wallet: wallet.trim(),
+            score: score
+        };
+
+        const btn = document.getElementById('claimBtn');
+        const originalText = btn.innerText;
+        btn.innerText = "VERIFYING...";
+        btn.disabled = true;
+
+        fetch("https://script.google.com/macros/s/AKfycbxUZSl61C16GHnVb0RvaPTncOFSTDUnG-hbEB3DYPInynX8N-GZao_EBbaEChNEPE-R/exec", {
+            method: "POST",
+            headers: { "Content-Type": "text/plain;charset=utf-8" },
+            body: JSON.stringify(payload)
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.result === "success") {
+                alert("✅ Wallet Confirmed. The Golden Llama acknowledges you. PTOOEY 💦");
+                btn.innerText = "AIRDROP SECURED";
+            } else {
+                alert("❌ ERROR: " + data.message);
+                btn.innerText = originalText;
+                btn.disabled = false;
+            }
+        })
+        .catch(err => {
+            alert("❌ Network Error. The idols are resisting. Try again.");
+            btn.innerText = originalText;
+            btn.disabled = false;
+        });
+    };
 
     window.addEventListener('resize', () => {
         canvas.width = window.innerWidth > 600 ? 600 : window.innerWidth;
