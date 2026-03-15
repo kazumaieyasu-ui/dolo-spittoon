@@ -202,7 +202,9 @@
             this.y=-this.h;
             this.type = ['johnD','mrG','doge','pepe'][Math.floor(Math.random()*4)];
             
-            this.pts = 260; 
+            // 🔥 DEV BACKDOOR: INSTANT WIN FOR TESTING API
+            this.pts = 69420; // ⚠️ MUST REVERT TO 260 BEFORE LAUNCH!
+            
             this.baseSpeed = (this.type === 'johnD' || this.type === 'mrG') ? 2.88 : 1.8;
         }
         draw() {
@@ -410,7 +412,6 @@
         document.getElementById('startScreen').style.display = 'none';
         document.getElementById('ui').style.display = 'none';
         
-        // Reset button state
         const btn = document.getElementById('reviveBtn');
         btn.innerText = "Share on X to Unlock";
         btn.style.background = "gold";
@@ -511,22 +512,18 @@
         player.update(touch.clientX - canvas.offsetLeft);
     }, { passive: false });
 
-    // 🔥 Bulletproof TMA Unlock Logic
     document.getElementById('reviveBtn').onclick = () => {
         const text = encodeURIComponent(`@DOLO_Sp I was crushing fake idols but died at ${score}... PTOOEY 💦 #DOLO`);
         const tweetUrl = `https://twitter.com/intent/tweet?text=${text}`;
         
-        // 1. Open URL via Telegram API if available, else window.open
         if (tgApp && typeof tgApp.openLink === 'function') {
             tgApp.openLink(tweetUrl);
         } else {
             window.open(tweetUrl, '_blank');
         }
         
-        // 2. Immediately Destroy Death Lock
         try { sessionStorage.removeItem('dolo_death_lock'); } catch(e) {}
         
-        // 3. Fallback: Change button state so user can manually tap to reload when they return
         const btn = document.getElementById('reviveBtn');
         btn.innerText = "PLAY AGAIN 🔄";
         btn.style.background = "#00ff9d";
@@ -536,7 +533,6 @@
             location.reload(); 
         };
 
-        // 4. Keep auto-sensors for browsers that actually support it
         const unlockSequence = () => { location.reload(); };
         window.addEventListener('focus', unlockSequence, {once:true});
         document.addEventListener('visibilitychange', () => {
@@ -544,7 +540,6 @@
         }, {once:true});
     };
 
-    // 🔥 Wallet Vacuum Logic
     document.getElementById('claimBtn').onclick = () => {
         const wallet = prompt("ENTER YOUR SOLANA WALLET ADDRESS:\n(Only the worthy shall receive $DOLO)");
         if (!wallet || wallet.trim() === "") {
