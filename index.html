@@ -390,3 +390,193 @@
 
         if (comboTimer > 0) comboTimer -= 1 * ts; 
         else { combo = 0; document.getElementById('combo').style.display='none'; }
+
+        ctx.save();
+        if (shake > 0) {
+            ctx.translate(Math.random()*shake- shake/2, Math.random()*shake-shake/2);
+            shake *= Math.pow(0.85, ts); 
+        }
+        player.draw();
+        ctx.restore();
+
+        if (!isGameOver) requestAnimationFrame(gameLoop);
+    }
+
+    function triggerGameOver() {
+        isGameOver = true;
+        try { sessionStorage.setItem('dolo_death_lock', score); } catch(e) {}
+        
+        document.getElementById('finalScore').innerText = score;
+        document.getElementById('message').innerText = `Locked out.\nYou died at ${score}.\n\nShare on X to unlock the game!\n"You're Fired. PTOOEY."`;
+        
+        document.getElementById('startScreen').style.display = 'none';
+        document.getElementById('ui').style.display = 'none';
+        
+        const btn = document.getElementById('reviveBtn');
+        btn.innerText = "Share on X to Unlock";
+        btn.style.background = "gold";
+        btn.style.color = "#000";
+        
+        btn.style.display = 'block';
+        document.getElementById('claimBtn').style.display = 'none';
+        document.getElementById('gameover').style.display = 'block';
+        
+        try {
+            const bgm = document.getElementById('bgm');
+            if(bgm) bgm.pause(); 
+        } catch(e) {}
+    }
+
+    function triggerVictory() {
+        isGameOver = true;
+        document.getElementById('finalScore').innerText = score;
+        document.getElementById('message').innerHTML = `All fake idols shattered!<br>Airdrop list confirmed.<br><br>The legend begins. PTOOEY. 💦`;
+        document.getElementById('reviveBtn').style.display = 'none';
+        document.getElementById('claimBtn').style.display = 'block';
+        document.getElementById('gameover').style.display = 'block';
+        
+        try {
+            const bgm = document.getElementById('bgm');
+            if(bgm) bgm.pause(); 
+        } catch(e) {}
+    }
+
+    function startGameFlow() {
+        if (isGameStarted) return; 
+        
+        document.getElementById('startScreen').style.display = 'none';
+        document.getElementById('ui').style.display = 'block';
+        
+        isGameStarted = true;
+        gameStart = Date.now();
+        lastSpawn = Date.now();
+        lastFrameTime = performance.now(); 
+        
+        initAudio();
+        try {
+            const bgm = document.getElementById('bgm');
+            if(bgm) {
+                bgm.volume = 0.5;
+                bgm.play().catch(err => console.log("BGM Blocked"));
+            }
+        } catch(e) {}
+
+        requestAnimationFrame(gameLoop);
+    }
+
+    try {
+        const deathLockScore = sessionStorage.getItem('dolo_death_lock');
+        if (deathLockScore !== null) {
+            score = parseInt(deathLockScore);
+            triggerGameOver(); 
+        } else {
+            drawBackground();
+            player.draw();
+        }
+    } catch(e) {
+        drawBackground();
+        player.draw();
+    }
+
+    // Button fix
+    const startBtn = document.getElementById('startBtn');
+    startBtn.addEventListener('click', startGameFlow);
+
+    canvas.addEventListener('pointerdown', e => {
+        if (!isGameStarted || isGameOver) return;
+        try {
+            initAudio();
+            const bgm = document.getElementById('bgm');
+            if(bgm && bgm.paused) bgm.play().catch(err => {});
+        } catch(e) {}
+
+        player.update(e.clientX - canvas.offsetLeft);
+        spits.push(new Spit(player.x, player.y));
+        isPointerDown = true;
+        lastShotTime = Date.now();
+    });
+
+    canvas.addEventListener('pointerup', () => { isPointerDown = false; });
+    canvas.addEventListener('pointerleave', () => { isPointerDown = false; });
+    canvas.addEventListener('pointercancel', () => { isPointerDown = false; });
+
+    canvas.addEventListener('pointermove', e => {
+        if (isGameStarted && !isGameOver) player.update(e.clientX - canvas.offsetLeft);
+    });
+
+    canvas.addEventListener('touchmove', e => {
+        if (!isGameStarted || isGameOver) return;
+        e.preventDefault();
+        const touch = e.touches[0];
+        player.update(touch.clientX - canvas.offsetLeft);
+    }, { passive: false });
+
+    document.getElementById('reviveBtn').onclick = () => {
+        const text = encodeURIComponent(`@DOLO_Sp I was crushing fake idols but died at ${score}... PTOOEY 💦 #DOLO`);
+        const tweetUrl = `https://twitter.com/intent/tweet?text=${text}`;
+        
+        if (tgApp && typeof tgApp.openLink === 'function') {
+            tgApp.openLink(tweetUrl);
+        } else {
+            window.open(tweetUrl, '_blank');
+        }
+        
+        try { sessionStorage.removeItem('dolo_death_lock'); } catch(e) {}
+        
+        const btn = document.getElementById('reviveBtn');
+        btn.innerText = "PLAY AGAIN 🔄";
+        btn.style.background = "#00ff9d";
+        btn.style.color = "#000";
+        
+        btn.onclick = () => {
+            location.reload(); 
+        };
+
+        const unlockSequence = () => { location.reload(); };
+        window.addEventListener('focus', unlockSequence, {once:true});
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') unlockSequence();
+        }, {once:true});
+    };
+
+    document.getElementById('claimBtn').onclick = () => {
+        const wallet = prompt("ENTER YOUR SOLANA WALLET ADDRESS:\n(Only the worthy shall receive $DOLO)");
+        if (!wallet || wallet.trim() === "") {
+            alert("Verification failed. Wallet address required. PTOOEY 💦");
+            return;
+        }
+
+        const tgId = tgInfo ? (tgInfo.username || tgInfo.id) : "Unknown_" + Math.floor(Math.random()*10000);
+
+        const btn = document.getElementById('claimBtn');
+        const originalText = btn.innerText;
+        btn.innerText = "VERIFYING...";
+        btn.disabled = true;
+
+        const scriptUrl = "https://script.google.com/macros/s/AKfycbwzdIs70JNvHtswsFIaWgGcgAsOgDH4vrgHmXINJvGb0kKzvf_C60aRPuVQ8HdyLn_N/exec";
+        const fullUrl = `${scriptUrl}?tgId=${encodeURIComponent(tgId)}&wallet=${encodeURIComponent(wallet)}&score=${score}`;
+
+        fetch(fullUrl, {
+            method: "GET",
+            mode: "no-cors" 
+        })
+        .then(() => {
+            alert("✅ Wallet Confirmed. The Golden Llama acknowledges you. PTOOEY 💦");
+            btn.innerText = "AIRDROP SECURED";
+        })
+        .catch(err => {
+            alert("❌ Bypass Failed. Try again.");
+            btn.innerText = originalText;
+            btn.disabled = false;
+        });
+    };
+
+    window.addEventListener('resize', () => {
+        canvas.width = window.innerWidth > 600 ? 600 : window.innerWidth;
+        canvas.height = window.innerHeight;
+        player.y = canvas.height - player.h - 40;
+    });
+
+</script>
+</body>
+</html>
