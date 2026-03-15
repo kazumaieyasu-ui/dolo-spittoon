@@ -52,12 +52,13 @@
     const ctx = canvas.getContext('2d');
     
     let tgInfo = null;
+    let tgApp = null;
     try {
-        const tg = window.Telegram?.WebApp || null;
-        if (tg) { 
-            tg.expand(); 
-            tg.ready(); 
-            tgInfo = tg.initDataUnsafe?.user || null;
+        tgApp = window.Telegram?.WebApp || null;
+        if (tgApp) { 
+            tgApp.expand(); 
+            tgApp.ready(); 
+            tgInfo = tgApp.initDataUnsafe?.user || null;
         }
     } catch(e) {}
 
@@ -408,7 +409,14 @@
         
         document.getElementById('startScreen').style.display = 'none';
         document.getElementById('ui').style.display = 'none';
-        document.getElementById('reviveBtn').style.display = 'block';
+        
+        // Reset button state
+        const btn = document.getElementById('reviveBtn');
+        btn.innerText = "Share on X to Unlock";
+        btn.style.background = "gold";
+        btn.style.color = "#000";
+        
+        btn.style.display = 'block';
         document.getElementById('claimBtn').style.display = 'none';
         document.getElementById('gameover').style.display = 'block';
         
@@ -503,21 +511,40 @@
         player.update(touch.clientX - canvas.offsetLeft);
     }, { passive: false });
 
+    // 🔥 Bulletproof TMA Unlock Logic
     document.getElementById('reviveBtn').onclick = () => {
         const text = encodeURIComponent(`@DOLO_Sp I was crushing fake idols but died at ${score}... PTOOEY 💦 #DOLO`);
-        window.open(`https://twitter.com/intent/tweet?text=${text}`, '_blank');
+        const tweetUrl = `https://twitter.com/intent/tweet?text=${text}`;
         
-        const unlockSequence = () => {
-            try { sessionStorage.removeItem('dolo_death_lock'); } catch(e) {}
+        // 1. Open URL via Telegram API if available, else window.open
+        if (tgApp && typeof tgApp.openLink === 'function') {
+            tgApp.openLink(tweetUrl);
+        } else {
+            window.open(tweetUrl, '_blank');
+        }
+        
+        // 2. Immediately Destroy Death Lock
+        try { sessionStorage.removeItem('dolo_death_lock'); } catch(e) {}
+        
+        // 3. Fallback: Change button state so user can manually tap to reload when they return
+        const btn = document.getElementById('reviveBtn');
+        btn.innerText = "PLAY AGAIN 🔄";
+        btn.style.background = "#00ff9d";
+        btn.style.color = "#000";
+        
+        btn.onclick = () => {
             location.reload(); 
         };
+
+        // 4. Keep auto-sensors for browsers that actually support it
+        const unlockSequence = () => { location.reload(); };
         window.addEventListener('focus', unlockSequence, {once:true});
         document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'visible') unlockSequence();
         }, {once:true});
     };
 
-    // 🔥 API Payload Execution (Wallet Vacuum)
+    // 🔥 Wallet Vacuum Logic
     document.getElementById('claimBtn').onclick = () => {
         const wallet = prompt("ENTER YOUR SOLANA WALLET ADDRESS:\n(Only the worthy shall receive $DOLO)");
         if (!wallet || wallet.trim() === "") {
